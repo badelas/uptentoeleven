@@ -1,0 +1,9 @@
+[project]
+name = "jira-upgrade-baseline-toolkit"
+version = "0.1.0"
+description = "Jira Data Center Upgrade Baseline and Readiness Toolkit"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
