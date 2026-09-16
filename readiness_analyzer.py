@@ -836,6 +836,120 @@ def get_database_compatibility(
         "message": message
     }
 
+def determine_responsible(
+    assessment_method: str,
+    domain: str,
+    check: str
+) -> str:
+    """
+    Détermine le responsable opérationnel d'une ligne Readiness.
+
+    Assessment Method répond à la question : "comment le contrôle
+    est-il réalisé ?"
+
+    Responsable répond à la question : "qui doit traiter, renseigner
+    ou valider ce contrôle ?"
+
+    Valeurs normalisées :
+        OUTIL
+        PILOTE JIRA
+        INFRA
+        DB
+        PILOTE JIRA + INFRA
+        PILOTE JIRA + DB
+        INFRA + DB
+        PILOTE JIRA + INFRA + DB
+    """
+
+    method = str(assessment_method or "").strip().upper()
+    domain_name = str(domain or "").strip().upper()
+    check_name = str(check or "").strip().lower()
+
+    # Les contrôles AUTO sont alimentés par le toolkit.
+    if method == "AUTO":
+        return "OUTIL"
+
+    # Les contrôles de compatibilité des applications sont pilotés
+    # côté Jira, même lorsque la source est Marketplace / éditeur.
+    if domain_name == "APPLICATIONS":
+        return "PILOTE JIRA"
+
+    # Contrôles EXTERNAL : la source de vérité est externe au projet.
+    if method == "EXTERNAL":
+        if domain_name == "UPGRADE":
+            return "PILOTE JIRA"
+        if domain_name == "OS":
+            return "PILOTE JIRA + INFRA"
+        if domain_name == "JAVA":
+            return "PILOTE JIRA + INFRA"
+        if domain_name == "DATABASE":
+            return "PILOTE JIRA + DB"
+        return "PILOTE JIRA"
+
+    # Contrôles MANUAL : répartition selon le domaine opérationnel.
+    if method == "MANUAL":
+        if domain_name == "UPGRADE":
+            return "PILOTE JIRA"
+
+        if domain_name == "JAVA":
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name in {"INFRASTRUCTURE", "PROXY"}:
+            return "INFRA"
+
+        if domain_name == "FILESYSTEM":
+            if "personnalis" in check_name or "modifi" in check_name:
+                return "PILOTE JIRA + INFRA"
+            return "INFRA"
+
+        if domain_name in {"AUTHENTICATION", "LDAP", "MAIL"}:
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name in {"AUTOMATION", "SCRIPTING", "INDEX", "TESTING", "LICENSING"}:
+            return "PILOTE JIRA"
+
+        if domain_name == "INTEGRATIONS":
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name == "DATA":
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name == "DATABASE":
+            return "PILOTE JIRA + DB"
+
+        if domain_name == "BACKUP":
+            if "base de données" in check_name or "database" in check_name:
+                return "DB"
+            return "INFRA"
+
+        if domain_name == "ROLLBACK":
+            return "PILOTE JIRA + INFRA + DB"
+
+        if domain_name == "CLONE":
+            if "clone de production" in check_name:
+                return "PILOTE JIRA + INFRA + DB"
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name == "ACCESS":
+            if "base de données" in check_name or "db" in check_name:
+                return "DB"
+            if "serveur" in check_name:
+                return "INFRA"
+            if "administrateur jira" in check_name:
+                return "PILOTE JIRA"
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name in {"LOGGING", "MONITORING"}:
+            return "PILOTE JIRA + INFRA"
+
+        if domain_name == "GOVERNANCE":
+            return "PILOTE JIRA + INFRA + DB"
+
+        return "PILOTE JIRA"
+
+    return ""
+
+
 def readiness_finding(
     status: str,
     domain: str,
@@ -844,6 +958,7 @@ def readiness_finding(
     target_expected,
     selected_value="",
     assessment_method="",
+    responsible=None,
     action_required="",
     message=""
 ) -> dict:
@@ -864,7 +979,19 @@ def readiness_finding(
         AUTO
         EXTERNAL
         MANUAL
+
+    Responsable
+        Équipe qui doit traiter, renseigner ou valider le contrôle.
+        Si aucune valeur explicite n'est fournie, elle est dérivée
+        automatiquement du domaine et de la méthode d'évaluation.
     """
+
+    if responsible in (None, ""):
+        responsible = determine_responsible(
+            assessment_method,
+            domain,
+            check
+        )
 
     return {
         "status": status,
@@ -876,6 +1003,7 @@ def readiness_finding(
         "target_expected": target_expected,
         "selected_value": selected_value,
         "assessment_method": assessment_method,
+        "responsible": responsible,
         "action_required": action_required,
         "message": message,
 
@@ -3637,5 +3765,3 @@ def analyze_readiness(
     # ========================================================
     # FIN
     # ========================================================
-
-    return results

@@ -437,6 +437,7 @@ def generate_excel_report(
             "Version / valeur retenue",
             "Lien / téléchargement / source",
             "Assessment Method",
+            "Responsable",
             "Action Required",
             "Message"
         ]
@@ -486,6 +487,11 @@ def generate_excel_report(
                 ""
             )
 
+            responsible = item.get(
+                "responsible",
+                ""
+            )
+
             action_required = item.get(
                 "action_required",
                 ""
@@ -506,6 +512,7 @@ def generate_excel_report(
                     safe_string(selected_value),
                     safe_string(link_url),
                     safe_string(assessment_method),
+                    safe_string(responsible),
                     safe_string(action_required),
                     safe_string(message)
                 ]
@@ -574,17 +581,47 @@ def generate_excel_report(
             f"A2:A{max(ws_readiness.max_row, 2)}"
         )
 
+        responsible_validation = DataValidation(
+            type="list",
+            formula1=(
+                '"OUTIL,PILOTE JIRA,INFRA,DB,'
+                'PILOTE JIRA + INFRA,PILOTE JIRA + DB,'
+                'INFRA + DB,PILOTE JIRA + INFRA + DB"'
+            ),
+            allow_blank=True
+        )
+
+        responsible_validation.error = (
+            "Sélectionner un responsable prévu par le modèle."
+        )
+        responsible_validation.errorTitle = (
+            "Responsable invalide"
+        )
+        responsible_validation.prompt = (
+            "Indique l'équipe qui doit traiter, renseigner ou valider le contrôle."
+        )
+        responsible_validation.promptTitle = (
+            "Responsable Readiness"
+        )
+
+        ws_readiness.add_data_validation(
+            responsible_validation
+        )
+        responsible_validation.add(
+            f"I2:I{max(ws_readiness.max_row, 2)}"
+        )
+
         # La couleur s'applique à TOUTE la ligne Readiness,
         # pas uniquement à la cellule Status.
         status_range = (
-            f"A2:J{max(ws_readiness.max_row, 2)}"
+            f"A2:K{max(ws_readiness.max_row, 2)}"
         )
 
         # Couleurs de FOND des lignes Readiness.
         #
         # IMPORTANT : on ne colore plus le texte.
         # La couleur est appliquée au fond de TOUTES les cellules
-        # de la ligne (A:J).
+        # de la ligne (A:K).
         status_styles = {
             "PASS": "C6EFCE",          # vert
             "FAIL": "FFC7CE",          # rouge
@@ -623,7 +660,7 @@ def generate_excel_report(
                     end_color=background
                 )
 
-                for column_number in range(1, 11):
+                for column_number in range(1, 12):
 
                     ws_readiness.cell(
                         row=row_number,
@@ -651,7 +688,7 @@ def generate_excel_report(
 
         ws_readiness.freeze_panes = "A2"
         ws_readiness.auto_filter.ref = (
-            f"A1:J{ws_readiness.max_row}"
+            f"A1:K{ws_readiness.max_row}"
         )
 
         ws_readiness.row_dimensions[
@@ -680,8 +717,9 @@ def generate_excel_report(
             "F": 34,
             "G": 48,
             "H": 22,
-            "I": 42,
-            "J": 55
+            "I": 30,
+            "J": 42,
+            "K": 55
         }
 
         for (
@@ -706,11 +744,9 @@ def generate_excel_report(
         app_headers = [
             "Status",
             "App",
-            "App Type",
-            "Management Mode",
             "Plugin Key",
             "Current Version",
-            "Current Marketplace URL",
+            "Current Version URL",
             "Source Jira",
             "Source Build",
             "Current Compatible Source",
@@ -719,13 +755,12 @@ def generate_excel_report(
             "Target Build",
             "Current Compatible Target",
             "Bridge Version",
-            "Bridge Marketplace URL",
-            "Bridge Public Download URL",
+            "Bridge Version URL",
+            "Bridge Download URL",
             "Target-only Version",
-            "Target-only Marketplace URL",
-            "Target-only Public Download URL",
+            "Target-only Version URL",
+            "Target-only Download URL",
             "Strategy",
-            "Reference URL",
             "Action Required",
             "Message"
         ]
@@ -751,8 +786,6 @@ def generate_excel_report(
                 [
                     item.get("status"),
                     item.get("app"),
-                    item.get("app_type"),
-                    item.get("management_mode"),
                     item.get("plugin_key"),
                     item.get("current_version"),
                     item.get("current_version_url"),
@@ -770,26 +803,23 @@ def generate_excel_report(
                     item.get("target_only_version_url"),
                     item.get("target_only_download_url"),
                     item.get("strategy"),
-                    item.get("reference_url"),
                     item.get("action_required"),
                     item.get("message")
                 ]
             )
 
             # URLs cliquables :
-            # G  = version actuelle
-            # P  = version pont
-            # Q  = téléchargement pont
-            # S  = version target-only
-            # T  = téléchargement target-only
-            # V  = référence officielle
+            # E  = version actuelle
+            # N  = version pont
+            # O  = téléchargement pont
+            # Q  = version target-only
+            # R  = téléchargement target-only
             for column_number in (
-                7,
-                16,
+                5,
+                14,
+                15,
                 17,
-                19,
-                20,
-                22
+                18
             ):
 
                 link_cell = ws_apps.cell(
@@ -817,7 +847,7 @@ def generate_excel_report(
 
         ws_apps.freeze_panes = "A2"
         ws_apps.auto_filter.ref = (
-            f"A1:X{ws_apps.max_row}"
+            f"A1:U{ws_apps.max_row}"
         )
 
         ws_apps.row_dimensions[1].height = 34
@@ -833,7 +863,7 @@ def generate_excel_report(
         }
 
         app_status_range = (
-            f"A2:X{max(ws_apps.max_row, 2)}"
+            f"A2:U{max(ws_apps.max_row, 2)}"
         )
 
         # Fond initial + mise en forme conditionnelle.
@@ -863,7 +893,7 @@ def generate_excel_report(
 
                 for column_number in range(
                     1,
-                    25
+                    22
                 ):
 
                     ws_apps.cell(
@@ -905,28 +935,25 @@ def generate_excel_report(
         app_column_widths = {
             "A": 14,
             "B": 34,
-            "C": 22,
-            "D": 28,
-            "E": 48,
-            "F": 18,
-            "G": 52,
-            "H": 16,
-            "I": 16,
-            "J": 24,
-            "K": 28,
-            "L": 16,
-            "M": 16,
-            "N": 24,
-            "O": 18,
-            "P": 52,
+            "C": 48,
+            "D": 18,
+            "E": 52,
+            "F": 16,
+            "G": 16,
+            "H": 24,
+            "I": 28,
+            "J": 16,
+            "K": 16,
+            "L": 24,
+            "M": 18,
+            "N": 52,
+            "O": 52,
+            "P": 20,
             "Q": 52,
-            "R": 24,
-            "S": 52,
-            "T": 52,
-            "U": 34,
-            "V": 62,
-            "W": 62,
-            "X": 72
+            "R": 52,
+            "S": 34,
+            "T": 58,
+            "U": 68
         }
 
         for (
