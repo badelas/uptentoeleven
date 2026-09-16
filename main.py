@@ -120,7 +120,7 @@ def collect_mode(
     # --------------------------------------------------------
     # Analyse de READINESS
     #
-    # SOURCE détectée automatiquement
+    # SOURCE détectée automatiquement depuis Jira
     # VS
     # CIBLE configurée dans .env
     # --------------------------------------------------------
@@ -250,11 +250,38 @@ def compare_mode(
 
     # --------------------------------------------------------
     # Comparaison PRE / POST
+    #
+    # IMPORTANT :
+    #
+    # Le comparateur reçoit maintenant la cible Jira.
+    #
+    # Exemple :
+    #
+    # PRE    = 10.3.25
+    # POST   = 10.3.25
+    # TARGET = 11.3
+    #
+    # => FAIL
+    #
+    # PRE    = 10.3.25
+    # POST   = 11.3.11
+    # TARGET = 11.3
+    #
+    # => PASS
+    #
+    # Les autres valeurs censées rester stables sont comparées
+    # indépendamment.
     # --------------------------------------------------------
 
     comparison = compare_baselines(
-        pre,
-        post
+        pre=pre,
+        post=post,
+        target_family=(
+            settings.target_jira_family
+        ),
+        target_version=(
+            settings.target_jira_version
+        )
     )
 
     # --------------------------------------------------------
@@ -268,8 +295,7 @@ def compare_mode(
     # --------------------------------------------------------
     # Readiness POST
     #
-    # Cela permettra notamment de voir si les conditions
-    # attendues après upgrade sont satisfaites.
+    # Vérifie l'état du Jira POST par rapport à la cible.
     # --------------------------------------------------------
 
     readiness = analyze_readiness(
@@ -323,6 +349,19 @@ def compare_mode(
     )
 
     logger.info(
+        "Cible utilisée pour la comparaison : "
+        "famille=%s version=%s",
+        (
+            settings.target_jira_family
+            or "NON DEFINIE"
+        ),
+        (
+            settings.target_jira_version
+            or "PATCH NON DEFINI"
+        )
+    )
+
+    logger.info(
         "Rapport : %s",
         excel_path
     )
@@ -339,6 +378,11 @@ def compare_mode(
 
     print(
         f"POST  : {post_path}"
+    )
+
+    print(
+        "Cible : "
+        f"{settings.target_jira_version or settings.target_jira_family or 'NON DEFINIE'}"
     )
 
     print(
@@ -407,7 +451,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Mode
+    # Mode PRE / POST
     # --------------------------------------------------------
 
     if args.mode in {
@@ -421,6 +465,10 @@ def main():
             logger
         )
 
+    # --------------------------------------------------------
+    # Mode COMPARE
+    # --------------------------------------------------------
+
     elif args.mode == "compare":
 
         compare_mode(
@@ -428,6 +476,10 @@ def main():
             logger
         )
 
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
 
 if __name__ == "__main__":
     main()
