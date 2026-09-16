@@ -18,6 +18,11 @@ from readiness_analyzer import (
     analyze_readiness
 )
 
+from app_compatibility import (
+    analyze_app_compatibility,
+    apply_app_compatibility_to_readiness
+)
+
 from config import Settings
 
 from excel_report import (
@@ -131,6 +136,30 @@ def collect_mode(
     )
 
     # --------------------------------------------------------
+    # Compatibilité des applications - PRE uniquement
+    #
+    # L'analyse Marketplace recherche :
+    # - compatibilité de la version actuelle avec la source
+    # - version pont source + cible
+    # - version compatible uniquement avec la cible
+    # - stratégie de mise à jour
+    # --------------------------------------------------------
+
+    app_compatibility = None
+
+    if phase.lower() == "pre":
+
+        app_compatibility = analyze_app_compatibility(
+            baseline,
+            settings
+        )
+
+        readiness = apply_app_compatibility_to_readiness(
+            readiness,
+            app_compatibility
+        )
+
+    # --------------------------------------------------------
     # Rapport Excel
     # --------------------------------------------------------
 
@@ -155,7 +184,8 @@ def collect_mode(
         ),
         target_version=(
             settings.target_jira_version
-        )
+        ),
+        app_compatibility=app_compatibility
     )
 
     # --------------------------------------------------------
