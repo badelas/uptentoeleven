@@ -1500,6 +1500,56 @@ def apply_app_compatibility_to_readiness(
     if not readiness or not app_compatibility:
         return readiness
 
+    # --------------------------------------------------------
+    # Synchronisation du build Jira cible dans Readiness
+    #
+    # L'analyse Marketplace a déjà résolu le build officiel
+    # de TARGET_JIRA_VERSION pour les applications Marketplace.
+    # On réutilise cette information afin d'éviter une
+    # incohérence entre l'onglet App Compatibility et Readiness.
+    # --------------------------------------------------------
+
+    target_build = None
+    target_jira = None
+
+    for item in app_compatibility:
+        candidate_build = item.get("target_build")
+
+        if candidate_build not in (None, ""):
+            target_build = candidate_build
+            target_jira = normalize(
+                item.get("target_jira")
+            )
+            break
+
+    if target_build not in (None, ""):
+        for row in readiness:
+            if (
+                normalize(row.get("domain")).upper() == "UPGRADE"
+                and normalize(row.get("check")).lower()
+                == "build cible jira"
+            ):
+                target_label = (
+                    f"Jira {target_jira}"
+                    if target_jira
+                    else "la version Jira cible"
+                )
+
+                row["status"] = "PASS"
+                row["current_value"] = str(target_build)
+                row["target_expected"] = (
+                    f"Build officiel correspondant à {target_label}"
+                )
+                row["target_value"] = row["target_expected"]
+                row["selected_value"] = str(target_build)
+                row["assessment_method"] = "EXTERNAL"
+                row["action_required"] = "Aucune"
+                row["message"] = (
+                    f"Build officiel {target_build} correspondant à "
+                    f"{target_label} identifié via Atlassian Marketplace."
+                )
+                break
+
     by_name = {
         normalize(item.get("app")).lower(): item
         for item in app_compatibility
